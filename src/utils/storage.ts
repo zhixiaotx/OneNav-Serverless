@@ -481,24 +481,68 @@ export function saveStoredSettings(settings: AppSettings): void {
 }
 
 export function getStoredSyncConfig(): SyncConfig {
+  let baseConfig = DEFAULT_SYNC_CONFIG;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SYNC_CONFIG);
-    if (!raw) return DEFAULT_SYNC_CONFIG;
-    const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_SYNC_CONFIG,
-      ...parsed,
-      gist: { ...DEFAULT_SYNC_CONFIG.gist, ...(parsed.gist || {}) },
-      githubRepo: { ...DEFAULT_SYNC_CONFIG.githubRepo, ...(parsed.githubRepo || {}) },
-      webdav: { ...DEFAULT_SYNC_CONFIG.webdav, ...(parsed.webdav || {}) },
-      customApi: { ...DEFAULT_SYNC_CONFIG.customApi, ...(parsed.customApi || {}) },
-      cloudflareKv: { ...DEFAULT_SYNC_CONFIG.cloudflareKv, ...(parsed.cloudflareKv || {}) },
-      cloudflareD1: { ...DEFAULT_SYNC_CONFIG.cloudflareD1, ...(parsed.cloudflareD1 || {}) },
-    };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      baseConfig = {
+        ...DEFAULT_SYNC_CONFIG,
+        ...parsed,
+        gist: { ...DEFAULT_SYNC_CONFIG.gist, ...(parsed.gist || {}) },
+        githubRepo: { ...DEFAULT_SYNC_CONFIG.githubRepo, ...(parsed.githubRepo || {}) },
+        webdav: { ...DEFAULT_SYNC_CONFIG.webdav, ...(parsed.webdav || {}) },
+        customApi: { ...DEFAULT_SYNC_CONFIG.customApi, ...(parsed.customApi || {}) },
+        cloudflareKv: { ...DEFAULT_SYNC_CONFIG.cloudflareKv, ...(parsed.cloudflareKv || {}) },
+        cloudflareD1: { ...DEFAULT_SYNC_CONFIG.cloudflareD1, ...(parsed.cloudflareD1 || {}) },
+      };
+    }
   } catch (e) {
     console.error('Failed to load syncConfig from localStorage:', e);
-    return DEFAULT_SYNC_CONFIG;
   }
+
+  // Overlay environment variables if present (Vite env variables)
+  const env = (import.meta as any).env || {};
+  const envProvider = env.VITE_SYNC_PROVIDER;
+
+  if (envProvider && baseConfig.provider === 'none') {
+    baseConfig.provider = envProvider;
+  }
+
+  if (env.VITE_GIST_TOKEN && !baseConfig.gist.token) baseConfig.gist.token = env.VITE_GIST_TOKEN;
+  if (env.VITE_GIST_ID && !baseConfig.gist.gistId) baseConfig.gist.gistId = env.VITE_GIST_ID;
+  if (env.VITE_GIST_FILENAME && !baseConfig.gist.filename) baseConfig.gist.filename = env.VITE_GIST_FILENAME;
+
+  if (env.VITE_GITHUB_REPO_TOKEN && !baseConfig.githubRepo.token) baseConfig.githubRepo.token = env.VITE_GITHUB_REPO_TOKEN;
+  if (env.VITE_GITHUB_REPO_OWNER && !baseConfig.githubRepo.owner) baseConfig.githubRepo.owner = env.VITE_GITHUB_REPO_OWNER;
+  if (env.VITE_GITHUB_REPO_NAME && !baseConfig.githubRepo.repo) baseConfig.githubRepo.repo = env.VITE_GITHUB_REPO_NAME;
+  if (env.VITE_GITHUB_REPO_BRANCH && !baseConfig.githubRepo.branch) baseConfig.githubRepo.branch = env.VITE_GITHUB_REPO_BRANCH;
+  if (env.VITE_GITHUB_REPO_PATH && !baseConfig.githubRepo.path) baseConfig.githubRepo.path = env.VITE_GITHUB_REPO_PATH;
+
+  if (env.VITE_WEBDAV_URL && !baseConfig.webdav.url) baseConfig.webdav.url = env.VITE_WEBDAV_URL;
+  if (env.VITE_WEBDAV_USERNAME && !baseConfig.webdav.username) baseConfig.webdav.username = env.VITE_WEBDAV_USERNAME;
+  if (env.VITE_WEBDAV_PASSWORD && !baseConfig.webdav.password) baseConfig.webdav.password = env.VITE_WEBDAV_PASSWORD;
+  if (env.VITE_WEBDAV_PATH && !baseConfig.webdav.path) baseConfig.webdav.path = env.VITE_WEBDAV_PATH;
+
+  if (env.VITE_CUSTOM_API_ENDPOINT && !baseConfig.customApi.endpoint) baseConfig.customApi.endpoint = env.VITE_CUSTOM_API_ENDPOINT;
+  if (env.VITE_CUSTOM_API_SECRET_TOKEN && !baseConfig.customApi.secretToken) baseConfig.customApi.secretToken = env.VITE_CUSTOM_API_SECRET_TOKEN;
+
+  if (env.VITE_CLOUDFLARE_KV_ACCOUNT_ID && !baseConfig.cloudflareKv.accountId) baseConfig.cloudflareKv.accountId = env.VITE_CLOUDFLARE_KV_ACCOUNT_ID;
+  if (env.VITE_CLOUDFLARE_KV_NAMESPACE_ID && !baseConfig.cloudflareKv.namespaceId) baseConfig.cloudflareKv.namespaceId = env.VITE_CLOUDFLARE_KV_NAMESPACE_ID;
+  if (env.VITE_CLOUDFLARE_KV_API_TOKEN && !baseConfig.cloudflareKv.apiToken) baseConfig.cloudflareKv.apiToken = env.VITE_CLOUDFLARE_KV_API_TOKEN;
+
+  if (env.VITE_CLOUDFLARE_D1_ACCOUNT_ID && !baseConfig.cloudflareD1.accountId) baseConfig.cloudflareD1.accountId = env.VITE_CLOUDFLARE_D1_ACCOUNT_ID;
+  if (env.VITE_CLOUDFLARE_D1_DATABASE_ID && !baseConfig.cloudflareD1.databaseId) baseConfig.cloudflareD1.databaseId = env.VITE_CLOUDFLARE_D1_DATABASE_ID;
+  if (env.VITE_CLOUDFLARE_D1_API_TOKEN && !baseConfig.cloudflareD1.apiToken) baseConfig.cloudflareD1.apiToken = env.VITE_CLOUDFLARE_D1_API_TOKEN;
+  if (env.VITE_CLOUDFLARE_D1_TABLE_NAME && !baseConfig.cloudflareD1.tableName) baseConfig.cloudflareD1.tableName = env.VITE_CLOUDFLARE_D1_TABLE_NAME;
+
+  if (env.VITE_AUTO_SYNC === 'false') {
+    baseConfig.autoSync = false;
+  } else if (env.VITE_AUTO_SYNC === 'true') {
+    baseConfig.autoSync = true;
+  }
+
+  return baseConfig;
 }
 
 export function saveStoredSyncConfig(config: SyncConfig): void {

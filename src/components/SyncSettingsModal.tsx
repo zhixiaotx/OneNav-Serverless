@@ -219,9 +219,25 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Local sync config state
-  const [config, setConfig] = useState<SyncConfig>(syncConfig);
+  const [config, setConfigInternal] = useState<SyncConfig>(syncConfig);
+  const setConfig = (updater: SyncConfig | ((prev: SyncConfig) => SyncConfig)) => {
+    setConfigInternal(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      onUpdateSyncConfig(next);
+      return next;
+    });
+  };
   // Local app settings state for General / ICP settings
-  const [localSettings, setLocalSettings] = useState<AppSettings>(settings);
+  const [localSettings, setLocalSettingsInternal] = useState<AppSettings>(settings);
+  const setLocalSettings = (updater: AppSettings | ((prev: AppSettings) => AppSettings)) => {
+    setLocalSettingsInternal(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (onUpdateSettings) {
+        onUpdateSettings(next);
+      }
+      return next;
+    });
+  };
 
   // Mask / Unmask visibility states for sensitive credentials
   const [showGistToken, setShowGistToken] = useState(false);
@@ -666,11 +682,11 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
   };
 
   useEffect(() => {
-    setConfig(syncConfig);
+    setConfigInternal(syncConfig);
   }, [syncConfig, isOpen]);
 
   useEffect(() => {
-    setLocalSettings(settings);
+    setLocalSettingsInternal(settings);
   }, [settings, isOpen]);
 
   useEffect(() => {

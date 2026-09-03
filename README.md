@@ -279,6 +279,60 @@ Cloudflare D1 是构建在 Cloudflare 全球边缘网络上的原生 Serverless 
 
 ---
 
+## 💾 配置信息持久化与环境变量配置指南 (小白必看 ⭐⭐⭐⭐⭐)
+
+为了让您在日常使用、刷新页面、甚至清除缓存后**配置信息永远不会丢失**，OneNav 支持**双重配置保存机制**：
+
+### 一、 默认：浏览器本地持久化保存（无需写代码）
+* **即时自动保存**：当您在 OneNav 网页的 **「设置 -> 数据同步」** 或 **「通用设置」** 中填写好您的 WebDAV 账号密码、Gist Token 等同步参数时，系统会在您输入的瞬间**自动安全地保存在浏览器的本地存储 (`localStorage`) 中**。
+* **刷新/重开不丢失**：即使您随意刷新页面、关闭浏览器标签页、或隔几天再次打开，配置信息都会完美保留，**不需要每次都重新填写**。
+
+---
+
+### 二、 进阶：通过环境变量（.env）一键预设配置（适合极客与云端部署）
+如果您希望在项目部署时就内置好同步配置（例如多团队共享、或每次重新部署免手动填表），您可以通过 **环境变量** 来进行配置。
+
+#### 1. 如何在本地配置（保姆级步骤）
+1. 在项目根目录下，找到名为 `.env.example` 的文件，将其复制一份并重命名为 **`.env`**（如果没有 `.env` 的话，直接新建一个）。
+2. 打开 `.env` 文件，根据您的需要填入对应参数（参考下方完整示例）。
+
+#### 2. `.env` 配置完整示例
+```env
+# 1. 选择默认的同步服务商 ('webdav' | 'gist' | 'github_repo' | 'custom_api' | 'cloudflare_kv' | 'cloudflare_d1' | 'none')
+VITE_SYNC_PROVIDER="webdav"
+
+# 2. 是否开启自动同步 (true / false)
+VITE_AUTO_SYNC="true"
+VITE_SYNC_INTERVAL_MINUTES="10"
+
+# 3. 方案 A：WebDAV 同步配置（以坚果云为例）
+VITE_WEBDAV_URL="https://dav.jianguoyun.com/dav/"
+VITE_WEBDAV_USERNAME="your-email@example.com"
+VITE_WEBDAV_PASSWORD="your-app-password"
+VITE_WEBDAV_PATH="/onenav/bookmarks.json"
+
+# 4. 方案 B：GitHub Gist 同步配置
+# VITE_SYNC_PROVIDER="gist"
+# VITE_GIST_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxx"
+# VITE_GIST_ID="your_gist_id_here"
+# VITE_GIST_FILENAME="onenav-bookmarks.json"
+
+# 5. 方案 C：Cloudflare KV 边缘存储配置
+# VITE_SYNC_PROVIDER="cloudflare_kv"
+# VITE_CLOUDFLARE_KV_ACCOUNT_ID="your_account_id"
+# VITE_CLOUDFLARE_KV_NAMESPACE_ID="your_namespace_id"
+# VITE_CLOUDFLARE_KV_API_TOKEN="your_api_token"
+```
+
+#### 3. 云端托管平台（如 Vercel / Cloud Run / Netlify）如何配置环境变量？
+如果您将本项目托管部署到云端：
+1. 登录您所使用的托管平台控制面板（如 Vercel 后台、Cloud Run 环境变量设置）。
+2. 找到 **Environment Variables（环境变量）** 设置页面。
+3. 逐个添加上述以 `VITE_` 开头的变量名与对应密钥。
+4. 重新触发部署（Redeploy）后，您的云端导航站就会自动加载这些配置，实现真正的**免手动配置、开箱即用**！
+
+---
+
 ## 🔒 导出数据安全认证与权限拦截机制
 
 为了防止任何人在公共或未锁定设备上通过一键点击「导出 JSON」或「导出 HTML 书签」恶意窃取、拷贝您的私密与敏感网址数据，OneNav 本地内置了严密的**导出安全认证门禁**：
