@@ -393,6 +393,110 @@ VITE_WEBDAV_PATH="/onenav/bookmarks.json"
 
 ---
 
+## ☁️ Cloudflare KV / D1 边缘存储与后端接口配置指南（保姆级教程 ⭐⭐⭐⭐⭐）
+
+如果您希望使用 **Cloudflare KV** 或 **Cloudflare D1** 作为云端书签同步数据库，由于 Cloudflare 官方 REST API 限制了浏览器跨域请求（在网页直接连会报错 `Failed to fetch`），**本项目已完美内置了 Cloudflare Pages Serverless 后端接口**。
+
+通过该后端接口，所有对 KV 或 D1 的读写请求都会通过 Cloudflare 服务器端转发，**彻底绕过浏览器的跨域拦截**！
+
+---
+
+### 一、 项目中已内置的后端接口代码 (`/functions/api/sync.ts`)
+
+在本项目源码中，后端接口已经为您写好并放置于 `/functions/api/sync.ts`，代码如下（无需您手动修改）：
+
+```ts
+// /functions/api/sync.ts (内置的 Cloudflare Pages Function)
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { env } = context;
+  try {
+    // 1. 优先从 D1 关系型数据库读取
+    if (env.DB) {
+      const result = await env.DB.prepare(
+        "SELECT data, updated_at FROM onenav_sync WHERE id = 'main_data' LIMIT 1"
+      ).first<{ data: string; updated_at: number }>();
+      if (result?.data) {
+        return new Response(result.data, { headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+    // 2. 其次从 KV 存储读取
+    if (env.ONENAV_KV) {
+      const value = await env.ONENAV_KV.get('onenav_bookmarks');
+      if (value) {
+        return new Response(value, { headers: { 'Content-Type': 'application/json' } });
+      }
+    }
+    return new Response(JSON.stringify({ error: 'No data stored yet' }), { status: 404 });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+};
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
+  try {
+    const rawData = await request.text();
+    JSON.parse(rawData); // 校验 JSON 格式
+
+    // 1. 写入 D1
+    if (env.DB) {
+      await env.DB.exec(
+        "CREATE TABLE IF NOT EXISTS onenav_sync (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL);"
+      );
+      await env.DB.prepare(
+        "INSERT OR REPLACE INTO onenav_sync (id, data, updated_at) VALUES ('main_data', ?, ?);"
+      )
+        .bind(rawData, Date.now())
+        .run();
+    }
+    // 2. 写入 KV
+    if (env.ONENAV_KV) {
+      await env.ONENAV_KV.put('onenav_bookmarks', rawData);
+    }
+    return new Response(JSON.stringify({ success: true, message: 'Saved to Cloudflare storage' }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  }
+};
+```
+
+---
+
+### 二、 如何在 Cloudflare Pages 中配置生效（保姆级零基础操作步骤）
+
+如果您希望将 OneNav 部署到 Cloudflare Pages 并完美启用 KV / D1 同步，请按以下步骤操作：
+
+#### 步骤 1：准备 Cloudflare 存储资源
+1. 登录 [Cloudflare Dashboard 控制面板](https://dash.cloudflare.com/)。
+2. **如果您使用 KV**：
+   - 在左侧菜单点击 **Workers & Pages** -> **KV**。
+   - 点击 **Create namespace**，命名空间名称输入 `ONENAV_KV`，点击创建。
+3. **如果您使用 D1**：
+   - 点击 **Workers & Pages** -> **D1 SQL Database**。
+   - 点击 **Create database**，数据库名称输入 `onenav-db`，点击创建。
+
+#### 步骤 2：在 Cloudflare Pages 中绑定存储
+1. 进入您的 Cloudflare Pages 项目控制面板。
+2. 点击顶部标签页的 **Settings（设置）** -> **Functions（函数）**。
+3. 向下滚动找到 **KV namespace bindings** 区域：
+   - 点击 **Add binding**：
+     - **Variable name (变量名)**：填写 `ONENAV_KV`
+     - **KV namespace**：下拉选择您刚刚创建的 `ONENAV_KV` 命名空间。
+4. 如果您使用的是 D1 数据库，在 **D1 database bindings** 区域：
+   - 点击 **Add binding**：
+     - **Variable name (变量名)**：填写 `DB`
+     - **D1 database**：下拉选择您的 `onenav-db` 数据库。
+5. 点击页面下方的 **Save（保存）**。
+
+#### 步骤 3：重新部署
+1. 进入 Pages 项目的 **Deployments** 页面。
+2. 点击最新一次部署右侧的 `...` 菜单，选择 **Redeploy（重新部署）**。
+3. 等待约 30 秒部署完成后，您的 OneNav 就可以直接无缝通过内置的 `/api/sync` 边缘接口与 Cloudflare 存储高速、安全、跨域无阻地同步了！
+
+---
+
 ## 📄 开源许可证
 
 本项目基于 **[MIT License](https://opensource.org/licenses/MIT)** 协议开源，这意味着您可以完全自由地 Fork 源码、根据个人喜好进行各种客制化改动、部署私用、甚至将其分发，无任何拘束。如果您喜欢这个作品，欢迎在 GitHub 上为它点亮一颗 **🌟 Star**！
