@@ -136,24 +136,28 @@ export async function testCloudflareKVConnection(
   // 2. Try testing native Cloudflare Pages Functions endpoint (/api/sync)
   try {
     const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const contentType = nativeRes.headers.get('content-type') || '';
     const latencyMs = Math.round(performance.now() - startTime);
-    if (nativeRes.ok || nativeRes.status === 404) {
+    if ((nativeRes.ok || nativeRes.status === 404) && (contentType.includes('application/json') || nativeRes.status === 404)) {
       return {
         ok: true,
         latencyMs,
-        message: `Cloudflare Pages 后端接口 (/api/sync) 连接成功！(延迟 ${latencyMs}ms)`,
+        message: `Cloudflare Pages 绑定就绪，后端接口 (/api/sync) 连接畅通！(延迟 ${latencyMs}ms)`,
         lastChecked: Date.now(),
       };
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   const latencyMs = Math.round(performance.now() - startTime);
   return {
     ok: false,
     latencyMs,
-    message: formatFetchError(lastError, '请完整填写 Account ID、KV Namespace ID、API 令牌，或将项目部署至 Cloudflare Pages 使用 /api/sync 接口'),
+    message: formatFetchError(
+      lastError,
+      '未能连通 Cloudflare Pages /api/sync 接口。若已在 Pages 绑定 KV，请确认已重新部署(Redeploy)；若未部署到 Pages，请填写上方凭证。'
+    ),
     lastChecked: Date.now(),
   };
 }
@@ -216,21 +220,27 @@ export async function fetchFromCloudflareKV(
   // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
     const nativeRes = await fetch('/api/sync', { method: 'GET' });
-    if (nativeRes.ok) {
+    const contentType = nativeRes.headers.get('content-type') || '';
+    if (nativeRes.ok && (contentType.includes('application/json') || !contentType.includes('text/html'))) {
       const payload: OneNavSyncPayload = await nativeRes.json();
       return {
         success: true,
         message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功同步 KV 数据',
         data: payload,
       };
+    } else if (nativeRes.status === 404) {
+      return {
+        success: false,
+        message: 'Cloudflare 存储连接畅通，但云端暂无书签数据，请先点击「推送到 KV 保存」进行首次备份',
+      };
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   return {
     success: false,
-    message: formatFetchError(lastError, '请先配置 Cloudflare Pages 后端绑定或 Account ID、Namespace ID 与 API Token'),
+    message: formatFetchError(lastError, '未能连通 Cloudflare Pages /api/sync 接口。若已在 Pages 绑定，请确认已重新部署(Redeploy)；或填写上方凭证。'),
   };
 }
 
@@ -296,14 +306,25 @@ export async function saveToCloudflareKV(
         message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功持久化至 KV',
         data: payload,
       };
+    } else {
+      const errJson = await nativeRes.json().catch(() => null);
+      if (errJson?.error) {
+        return {
+          success: false,
+          message: `Cloudflare Pages 写入失败: ${errJson.error}`,
+        };
+      }
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   return {
     success: false,
-    message: formatFetchError(lastError, '请先配置 Cloudflare Pages 后端绑定或 Account ID、Namespace ID 与 API Token'),
+    message: formatFetchError(
+      lastError,
+      '未能通过 Cloudflare Pages /api/sync 接口保存。若已在 Pages 绑定，请确认已重新部署(Redeploy)；或填写上方凭证。'
+    ),
   };
 }
 
@@ -361,24 +382,28 @@ export async function testCloudflareD1Connection(
 
   try {
     const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const contentType = nativeRes.headers.get('content-type') || '';
     const latencyMs = Math.round(performance.now() - startTime);
-    if (nativeRes.ok || nativeRes.status === 404) {
+    if ((nativeRes.ok || nativeRes.status === 404) && (contentType.includes('application/json') || nativeRes.status === 404)) {
       return {
         ok: true,
         latencyMs,
-        message: `Cloudflare Pages 后端接口 (/api/sync) 连接成功！(延迟 ${latencyMs}ms)`,
+        message: `Cloudflare Pages 绑定就绪，后端接口 (/api/sync) 连接畅通！(延迟 ${latencyMs}ms)`,
         lastChecked: Date.now(),
       };
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   const latencyMs = Math.round(performance.now() - startTime);
   return {
     ok: false,
     latencyMs,
-    message: formatFetchError(lastError, '请完整填写 Account ID、D1 Database ID、API 令牌，或将项目部署至 Cloudflare Pages 使用 /api/sync 接口'),
+    message: formatFetchError(
+      lastError,
+      '未能连通 Cloudflare Pages /api/sync 接口。若已在 Pages 绑定 D1，请确认已重新部署(Redeploy)；若未部署到 Pages，请填写上方凭证。'
+    ),
     lastChecked: Date.now(),
   };
 }
@@ -431,21 +456,25 @@ export async function initAndTestCloudflareD1(
 
   try {
     const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const contentType = nativeRes.headers.get('content-type') || '';
     const latencyMs = Math.round(performance.now() - startTime);
-    if (nativeRes.ok || nativeRes.status === 404) {
+    if ((nativeRes.ok || nativeRes.status === 404) && (contentType.includes('application/json') || nativeRes.status === 404)) {
       return {
         success: true,
-        message: `Cloudflare Pages 后端接口 (/api/sync) 连接成功！(延迟 ${latencyMs}ms)`,
+        message: `Cloudflare Pages 绑定就绪 (/api/sync 延迟 ${latencyMs}ms)，表结构将在首次保存时全自动建立！`,
         latencyMs,
       };
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   return {
     success: false,
-    message: formatFetchError(lastError, '请完整填写 Account ID、D1 Database ID、API 令牌，或将项目部署至 Cloudflare Pages 使用 /api/sync 接口'),
+    message: formatFetchError(
+      lastError,
+      '未能连通 Cloudflare Pages /api/sync 接口。若已在 Pages 绑定 D1，请确认已重新部署(Redeploy)；或填写上方凭证。'
+    ),
   };
 }
 
@@ -511,21 +540,30 @@ export async function fetchFromCloudflareD1(
 
   try {
     const nativeRes = await fetch('/api/sync', { method: 'GET' });
-    if (nativeRes.ok) {
+    const contentType = nativeRes.headers.get('content-type') || '';
+    if (nativeRes.ok && (contentType.includes('application/json') || !contentType.includes('text/html'))) {
       const payload: OneNavSyncPayload = await nativeRes.json();
       return {
         success: true,
         message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功同步 D1 数据',
         data: payload,
       };
+    } else if (nativeRes.status === 404) {
+      return {
+        success: false,
+        message: 'Cloudflare D1 连接畅通，但数据库暂无书签数据，请先点击「推送到 D1 保存」进行首次备份',
+      };
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   return {
     success: false,
-    message: formatFetchError(lastError, '请先配置 Cloudflare Pages 后端绑定或 Account ID、Database ID 与 API 令牌'),
+    message: formatFetchError(
+      lastError,
+      '未能连通 Cloudflare Pages /api/sync 接口。若已在 Pages 绑定 D1，请确认已重新部署(Redeploy)；或填写上方凭证。'
+    ),
   };
 }
 
@@ -598,14 +636,25 @@ export async function saveToCloudflareD1(
         message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功写入 D1 数据库',
         data: payload,
       };
+    } else {
+      const errJson = await nativeRes.json().catch(() => null);
+      if (errJson?.error) {
+        return {
+          success: false,
+          message: `Cloudflare Pages 写入失败: ${errJson.error}`,
+        };
+      }
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    lastError = err;
   }
 
   return {
     success: false,
-    message: formatFetchError(lastError, '请先配置 Cloudflare Pages 后端绑定或 Account ID、Database ID 与 API 令牌'),
+    message: formatFetchError(
+      lastError,
+      '未能通过 Cloudflare Pages /api/sync 接口保存。若已在 Pages 绑定，请确认已重新部署(Redeploy)；或填写上方凭证。'
+    ),
   };
 }
 

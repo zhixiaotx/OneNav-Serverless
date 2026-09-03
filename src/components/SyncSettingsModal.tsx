@@ -703,10 +703,10 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
         setGistHealth({ status: 'unconfigured', message: '尚未填写 Gist 凭证' });
       }
       if (!config.cloudflareKv.accountId || !config.cloudflareKv.apiToken) {
-        setKvHealth({ status: 'unconfigured', message: '尚未配置 KV 凭证' });
+        setKvHealth({ status: 'unconfigured', message: '已绑定 Pages 可直接点击「测试连接」；或填写凭证' });
       }
       if (!config.cloudflareD1.accountId || !config.cloudflareD1.apiToken) {
-        setD1Health({ status: 'unconfigured', message: '尚未配置 D1 凭证' });
+        setD1Health({ status: 'unconfigured', message: '已绑定 Pages 可直接点击「测试连接」；或填写凭证' });
       }
     }
   }, [isOpen]);
@@ -765,12 +765,7 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
 
   // Check KV Connection
   const handleCheckKV = async () => {
-    if (!config.cloudflareKv.accountId || !config.cloudflareKv.namespaceId || !config.cloudflareKv.apiToken) {
-      setKvHealth({ status: 'unconfigured', message: '请先填写完整 Cloudflare KV 凭证' });
-      showMsg('error', '请完整填写 Cloudflare Account ID、KV Namespace ID 与 API 令牌');
-      return;
-    }
-    setKvHealth({ status: 'checking', message: '正在连接 Cloudflare KV 全球边缘节点...' });
+    setKvHealth({ status: 'checking', message: '正在连接 Cloudflare KV 存储服务...' });
     const res = await testCloudflareKVConnection(config.cloudflareKv);
     if (res.ok) {
       setKvHealth({
@@ -794,11 +789,6 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
 
   // Check D1 Connection
   const handleCheckD1 = async () => {
-    if (!config.cloudflareD1.accountId || !config.cloudflareD1.databaseId || !config.cloudflareD1.apiToken) {
-      setD1Health({ status: 'unconfigured', message: '请先填写完整 Cloudflare D1 凭证' });
-      showMsg('error', '请完整填写 Cloudflare Account ID、D1 Database ID 与 API 令牌');
-      return;
-    }
     setD1Health({ status: 'checking', message: '正在查询 Cloudflare D1 关系数据库...' });
     const res = await testCloudflareD1Connection(config.cloudflareD1);
     if (res.ok) {
@@ -826,8 +816,8 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
     setIsCheckingAll(true);
     await Promise.allSettled([
       config.gist.token && config.gist.gistId ? handleCheckGist() : Promise.resolve(),
-      config.cloudflareKv.accountId && config.cloudflareKv.apiToken ? handleCheckKV() : Promise.resolve(),
-      config.cloudflareD1.accountId && config.cloudflareD1.apiToken ? handleCheckD1() : Promise.resolve(),
+      handleCheckKV(),
+      handleCheckD1(),
     ]);
     setIsCheckingAll(false);
   };
@@ -878,11 +868,6 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
 
   // 1-Click Init Table in D1
   const handleInitD1Table = async () => {
-    if (!config.cloudflareD1.accountId || !config.cloudflareD1.databaseId || !config.cloudflareD1.apiToken) {
-      showMsg('error', '请先填写 Cloudflare Account ID、D1 Database ID 与 API 令牌');
-      return;
-    }
-
     setLoadingAction('initD1Table');
     const res = await initAndTestCloudflareD1(config.cloudflareD1);
     setLoadingAction(null);
@@ -2491,7 +2476,7 @@ jobs:
                       <p className="text-[11px] opacity-90 leading-relaxed font-mono break-all">
                         {d1Health.message ||
                           (d1Health.status === 'unconfigured'
-                            ? '请先填写 Account ID、Database ID 与 API 令牌，然后点击「测试连接」'
+                            ? '已绑定 Pages 可直接点击「测试连接」；或填写上方凭证后连接'
                             : '就绪')}
                       </p>
                     </div>
@@ -2821,7 +2806,7 @@ jobs:
                       <p className="text-[11px] opacity-90 leading-relaxed font-mono break-all">
                         {kvHealth.message ||
                           (kvHealth.status === 'unconfigured'
-                            ? '请先填写 Account ID、KV Namespace ID 与 API 令牌，然后点击「测试连接」'
+                            ? '已绑定 Pages 可直接点击「测试连接」；或填写上方凭证后连接'
                             : '就绪')}
                       </p>
                     </div>

@@ -23,7 +23,7 @@
 * 🖼️ **沉浸式壁纸控制中心：** 支持 Bing 每日壁纸、Unsplash 随机美图、渐变色/纯色背景，支持自定义图床外链及本地壁纸上传。提供可调节的背景毛玻璃虚化度（Blur）及遮罩透明度（Opacity），保障书签卡片文字的高对比度清晰阅读。
 * ☁️ **全能云同步备份生态：**
   * **GitHub Gist**：简单稳定，仅需配置个人私有 Token，实现私有化静默自动同步。
-  * **Cloudflare KV**：依托 Cloudflare 全球边缘网络，毫秒级快速读取数据。
+  * **Cloudflare KV / D1 边缘存储（全新零配置直连 ⭐⭐⭐⭐⭐）**：原生支持在 Cloudflare Pages 控制台直接绑定 KV 命名空间或 D1 关系型数据库，网页端**完全无需在设置中填写任何 Account ID、Token 或 Database ID 凭证**！系统自动经由内置 `/api/sync` 边缘 Serverless 接口安全读写，彻底根除浏览器跨域拦截（CORS / Failed to fetch）。
   * **WebDAV 协议**：支持坚果云（Jianguoyun）、Nextcloud、群晖 NAS 等私有协议备份。
   * **本地安全导入导出**：支持标准 JSON 数据一键下载，完美兼容 Chrome/Edge 浏览器原生 HTML 书签树的双向递归解析导入。
 * 🔒 **管理员锁定与凭证加密：** 独创本地临时口令锁机制，支持凭证 AES-256 高级对称加密保存，防止在公共设备上泄露同步 Token 或被旁人误删数据。
@@ -206,21 +206,23 @@ OneNav 提供了超越常规导航站的沉浸式壁纸管理器。您可以按�
 
 Cloudflare D1 是构建在 Cloudflare 全球边缘网络上的原生 Serverless 关系型 SQL 数据库，具备极佳的事务一致性、零成本自动备份、极低延迟以及高度的拓展性。
 
-1. **创建 D1 关系数据库**：
-   - 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)。
-   - 在左侧边栏点击 **Workers & Pages** -> **D1** -> **Create Database**。
-   - 输入数据库名称（例如 `onenav_db`），创建成功后，记录并复制该 D1 数据库的 **Database ID (UUID 串)**。
-2. **在 Cloudflare 部署中绑定你的 D1 实例**：
-   - 前往您的 Pages 部署项目详情。
-   - 点击 **Settings** -> **Functions** -> **D1 database bindings** -> 点击 **Add binding**。
-   - 变量名（Variable Name）设为 `DB`，并选择刚才创建的 D1 数据库。
-3. **申请 CF 写入权限 API 令牌（Token）**：
-   - 前往 Cloudflare 个人账户中心 -> **My Profile** -> **API Tokens** -> 点击 **Create Token**。
-   - 选用自定义令牌或编辑 Workers 模板，权限必须赋予：**Account -> D1 -> Edit**。保存并复制获得的超长 API 令牌。
-4. **导航站配置一键同步**：
-   - 打开导航站 -> 设置 -> 数据同步 -> 选项卡选择 **Cloudflare D1**。
-   - 填入您的 Cloudflare 账户 ID（Account ID）、D1 数据库 ID 与 API 令牌。
-   - 点击 **「一键初始化并测试 D1 数据库表」**，系统会在您的边缘 SQLite 中全自动建表。然后点击 **「推送到 D1 保存」** 完成首次全量同步！
+#### 🎯 推荐模式：Cloudflare Pages 零配置直连（完全无需在网页中填写凭证）
+这是最安全、最优雅的官方推荐方案，彻底杜绝了浏览器跨域阻断与凭证泄露风险：
+1. **创建 D1 数据库**：
+   - 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)，点击 **Workers & Pages** -> **D1 SQL Database** -> **Create database**，输入名称如 `onenav-db`。
+2. **在 Pages 部署中绑定 D1**：
+   - 前往您的 Pages 部署项目 -> **Settings** -> **Functions** -> **D1 database bindings** -> 点击 **Add binding**。
+   - **Variable name (变量名)**：填写 `DB`（或自定义名称如 `MY_DB`，系统均能智能识别），下拉选择刚才创建的 D1 数据库。
+   - 前往 **Deployments** 页面点击最新部署右侧的 `...` -> **Redeploy（重新部署）**。
+3. **网页端一键连接（全免填）**：
+   - 打开导航站 -> 设置 -> 数据同步 -> 选择 **Cloudflare D1**。
+   - 表单中各输入框均已标注为 `(Pages部署后免填)`，**您完全无需填写 Account ID、Database ID 或 API 令牌，保持留空即可**！
+   - 直接点击 **「测试连接」**，系统自动通过内置 Serverless 接口直连 D1，随后点击 **「推送到 D1 保存」** 完成一键云备份！
+
+#### 🛠️ 备选模式：传统 REST API 模式（适合本地测试 / 外部平台）
+如果您不是部署在 Cloudflare Pages（例如在本地开发环境或第三方服务器），可使用传统 API 方式：
+- 填入您的 Cloudflare Account ID、D1 Database ID 与 API 令牌（需具备 D1 Edit 权限）。
+- 在本地运行 `npm run dev` 时，项目内置的 `/api/cloudflare` 代理会自动帮您绕过浏览器跨域拦截。
 
 ---
 
@@ -228,18 +230,21 @@ Cloudflare D1 是构建在 Cloudflare 全球边缘网络上的原生 Serverless 
 
 如果您希望建立全球范围内的极速键值对同步，可以选择 Cloudflare KV 作为存储介质：
 
+#### 🎯 推荐模式：Cloudflare Pages 零配置直连（完全无需在网页中填写凭证）
 1. **创建 KV 命名空间**：
-   - 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)，在左侧点击 **Workers & Pages** -> **KV** -> **Create a namespace**。
-   - 命名为 `ONENAV_STORE`，创建并复制该 KV 的 Namespace ID。
-2. **在 Cloudflare 部署中进行绑定**：
-   - 进入您 Pages 的项目详情页，点击 **Settings** -> **Functions** -> **KV namespace bindings** -> **Add binding**。
-   - 变量名称设为 `ONENAV_KV`，并绑定您刚才创建的 `ONENAV_STORE`。
-3. **获取 API Token 凭证**：
-   - 前往 Cloudflare 个人账户中心 -> **My Profile** -> **API Tokens** -> **Create Token**。
-   - 选用 `Edit Cloudflare Workers` 模板（需赋予 Workers/KV 的 Read & Write 写入读取权限），生成并记录生成的 API 密钥。
-4. **绑定配置**：
+   - 登录 [Cloudflare 控制台](https://dash.cloudflare.com/)，在左侧点击 **Workers & Pages** -> **KV** -> **Create namespace**，命名为 `ONENAV_KV`。
+2. **在 Pages 部署中绑定 KV**：
+   - 进入 Pages 项目详情页 -> **Settings** -> **Functions** -> **KV namespace bindings** -> 点击 **Add binding**。
+   - **Variable name (变量名)**：填写 `ONENAV_KV`（也支持自定义名称如 `MY_KV`），下拉选择您刚刚创建的 KV 空间。
+   - 点击 **Save** 并重新部署（Redeploy）。
+3. **网页端一键同步（免凭证）**：
    - 打开导航站 -> 设置 -> 数据同步 -> 选择 **Cloudflare KV**。
-   - 填入您的 Cloudflare 账户 ID（Account ID）、Namespace ID 和 API 凭证。点击上传同步。
+   - **完全无需填写 Account ID、Namespace ID 与 Token**，输入框直接留空。
+   - 直接点击 **「测试连接」** 与 **「推送到 KV 保存」**，即可通过内置 `/api/sync` 边缘接口瞬时实现多端同步！
+
+#### 🛠️ 备选模式：传统 REST API 模式
+- 手动填入 Account ID、KV Namespace ID 与具备 Workers KV 读写权限的 API Token。
+- 开发环境下同样自动享受本地代理转发服务。
 
 ---
 
@@ -490,21 +495,38 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
      - **D1 database**：下拉选择您的 D1 数据库。
 5. 点击页面下方的 **Save（保存）**。
 
-#### 步骤 3：重新部署
+#### 步骤 3：重新部署生效
 1. 进入 Pages 项目的 **Deployments** 页面。
 2. 点击最新一次部署右侧的 `...` 菜单，选择 **Redeploy（重新部署）**。
-3. 等待约 30 秒部署完成后，您的 OneNav 就可以直接无缝通过内置的 `/api/sync` 边缘接口与 Cloudflare 存储高速、安全、跨域无阻地同步了！
+3. 等待约 30 秒部署完成后，Cloudflare 边缘环境便自动装载了您的 D1 数据库或 KV 命名空间！
 
-> 💡 **重要排错提示（关于 `KV / D1 读取异常: Failed to fetch` 跨域报错）**：
-> 无论是 **Cloudflare KV** 还是 **Cloudflare D1**，如果您在网页端设置中直接填入了 Account ID、API 令牌、Database ID 等敏感凭证，浏览器会尝试直接请求 Cloudflare 官方 API，从而遭到严格的 **CORS 跨域安全拦截**，提示 `Failed to fetch`。
-> 🎯 **零配置直连（官方推荐的最优解）**：
-> **Cloudflare KV 或者 Cloudflare D1 直接在 https://dash.cloudflare.com 部署项目中绑定 KV 空间或者 D1 数据库，完全无需在网页端设置中填写任何凭证**！
-> 系统会自动优先通过内置的 `/api/sync` 边缘接口在服务器端与 KV / D1 进行安全的内部通信，彻底告别浏览器跨域拦截，既安全又省心！
+#### 步骤 4：在 OneNav 网页端开启零配置同步（全免填，极简体验 ✨）
+1. 打开部署好的 OneNav 网站，点击右上角 ⚙️ **设置** -> **数据同步**。
+2. 在同步提供商下拉菜单中选择 **Cloudflare D1** 或 **Cloudflare KV**。
+3. 界面会显示醒目的橙色/黄色提示：
+   > 💡 **零配置直连（推荐方法）**：直接在 https://dash.cloudflare.com 部署项目中绑定对应存储，此处**完全无需填写任何凭证**！
+4. 页面中的输入框已特别标记为 `(Pages部署后免填)`，占位符为 `已绑定 Cloudflare Pages 则无需填写`。
+5. **无需填写任何内容，直接点击「测试连接」**：
+   - 系统将自动向本站同源接口 `/api/sync` 发送探测请求。
+   - 看到绿色的「连接成功，已打通 Cloudflare 存储！」即表示连通无阻！
+6. 点击 **「推送到云端保存」** 即可完成书签的首次全量边缘备份；后续在其他设备打开，同样选择该提供商并点击 **「拉取云端数据」** 即可无缝同步！
 
-> 💡 **本地开发与 AI Studio 预览环境的专属福利（内置代理）**：
-> 如果您是在本地运行 `npm run dev`，或在 AI Studio 中直接预览测试（尚未部署到 Cloudflare Pages），此时没有后端的 `/api/sync` 接口，怎么办？
-> 别担心！本项目在开发环境的 `vite.config.ts` 中已经为您内置了 `/api/cloudflare` 本地跨域反向代理。
-> **测试技巧**：在本地预览时，您可以毫无顾忌地在设置面板中填入 Account ID、API 令牌和 Database ID 等凭证，前端会智能地将请求发给本地代理服务器，从而**完全绕过浏览器的跨域拦截**，让您在本地就能完美顺畅地调试云端 KV 和 D1 数据库！但在最终上线部署到 Cloudflare Pages 时，请记得清空这些凭证，使用更安全的后台变量绑定方案。
+---
+
+### 三、 原理解析与常见避坑要点（为什么官方推荐零配置直连？）
+
+#### 1. 为什么在网页直接填写 API 令牌会报 `Failed to fetch`？
+* **浏览器 CORS 跨域限制**：Cloudflare 官方 REST API (`https://api.cloudflare.com/client/v4/...`) 出于安全考虑，并未对第三方浏览器域名开放全通配跨域预检请求（OPTIONS）。
+* 因此，任何从前端网页直接发起的 Cloudflare REST API 请求，都会被现代浏览器严格拦截，表现为底层的 `TypeError: Failed to fetch`。
+
+#### 2. 本项目“零配置直连”架构的巨大优势：
+* 🛡️ **绝对安全（0 凭据泄露风险）**：无需在网页端或浏览器 LocalStorage 存储高权限的 Cloudflare API 令牌，所有权限均在 Cloudflare 内部环境鉴权。
+* ⚡ **绝对同源（彻底根除跨域拦截）**：网页前端仅请求自身域名下的 `/api/sync` 路径，属于 100% 同源请求，彻底告别 CORS 报错！
+* 🚀 **极简零门槛**：换新电脑或新手机时，无需反复寻找、复制粘贴那串反人类的 32 位 Token 和 Database ID，打开设置直接一键连通！
+
+#### 3. 智能错误诊断与本地开发专属福利
+* **智能异常捕获**：若底层依然因特殊原因抛出 `Failed to fetch` 错误，OneNav 的数据层已全面内置智能诊断拦截器，会自动转化为高可读性的中文指引，精准告知故障原因与解决方案。
+* **本地开发代理福利 (`vite.config.ts`)**：如果您在本地开发运行 `npm run dev`，或在 AI Studio 等开发沙箱中预览测试（尚未部署到 Cloudflare Pages），此时没有生产环境的 `/api/sync` 接口。项目内置了 `/api/cloudflare` 本地跨域反向代理，您可以在开发阶段放心填写 Account ID 与 Token 进行功能联调，代理会自动帮您绕过浏览器的跨域拦截！生产上线部署至 Cloudflare Pages 时，则直接享受零配置免凭证直连。
 
 
 ---
