@@ -286,7 +286,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   subtitle: '免服务器极速书签导航与多端自动同步',
   logoText: 'OneNav',
   themeMode: 'light',
-  cardLayout: 'cards',
+  cardLayout: 'minimal',
   openInNewTab: true,
   showClickCount: true,
   showDescription: true,

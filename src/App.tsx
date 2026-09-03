@@ -37,7 +37,7 @@ import { UnlockModal } from './components/UnlockModal';
 import { SyncErrorToast } from './components/SyncErrorToast';
 import { WallpaperModal } from './components/WallpaperModal';
 import { BING_TODAY_URL } from './services/wallpaperService';
-import { Github, Globe, Heart, Sparkles, CloudCheck, Layers, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Github, Globe, Heart, Sparkles, CloudCheck, Layers, ShieldCheck, SlidersHorizontal, ArrowUp } from 'lucide-react';
 
 export default function App() {
   // Primary States
@@ -63,6 +63,19 @@ export default function App() {
   const [syncModalDefaultTab, setSyncModalDefaultTab] = useState<string>('gist');
   const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
   const [isWallpaperOpen, setIsWallpaperOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Sync ref to prevent loop
   const isSyncingRef = useRef(false);
@@ -704,6 +717,18 @@ export default function App() {
           setIsSyncModalOpen(true);
         }}
       />
+
+      {/* Back to Top Floating Button */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-6 right-6 z-40 p-3 rounded-2xl bg-white/80 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-lg border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 group"
+          title="一键置顶"
+        >
+          <ArrowUp className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
+        </button>
+      )}
     </div>
   );
 }
