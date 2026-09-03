@@ -1,0 +1,6 @@
+{
+  "name": "OneNav Serverless",
+  "description": "免服务器的轻量级个人书签导航，支持GitHub Pages、Vercel、Cloudflare Pages与Netlify等无服务器环境部署并实现数据自动同步",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

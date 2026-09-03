@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "id": "bm-1",
+      "categoryId": "cat-dev",
+      "title": "GitHub",
+      "url": "https://github.com",
+      "description": "全球最大的开源代码托管平台",
+      "clicks": 100,
+      "order": 1,
+      "createdAt": 1700000000000,
+      "updatedAt": 1700000000000
+    }
+  ]
+}
