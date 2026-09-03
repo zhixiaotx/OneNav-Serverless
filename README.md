@@ -495,6 +495,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 2. 点击最新一次部署右侧的 `...` 菜单，选择 **Redeploy（重新部署）**。
 3. 等待约 30 秒部署完成后，您的 OneNav 就可以直接无缝通过内置的 `/api/sync` 边缘接口与 Cloudflare 存储高速、安全、跨域无阻地同步了！
 
+> 💡 **重要排错提示（关于 `KV 读取异常: Failed to fetch`）**：
+> 如果您在设置中填入了 Cloudflare 的 Account ID、Namespace ID 和 API 令牌，网页会尝试直接调用 Cloudflare 官方 API，从而遭到浏览器严格的 **CORS 跨域安全拦截**。
+> **正确做法**：当项目成功部署到 Cloudflare Pages 并绑定好 `ONENAV_KV` 存储后，在前端设置面板中**无需填写 Account ID 与 API Token**，系统会自动通过内置的 `/api/sync` 边缘接口与 KV 进行通信，完美解决跨域问题！
+
 ---
 
 ## 📄 开源许可证
