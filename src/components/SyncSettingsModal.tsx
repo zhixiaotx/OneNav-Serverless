@@ -2402,6 +2402,10 @@ jobs:
                 <p>
                   Cloudflare D1 是构建在全球边缘网络上的分布式 SQL 数据库，具备自动备份与事务一致性。无需自建 MySQL 数据库，直接通过 Cloudflare REST API 实现书签的极速双向同步与持久化！
                 </p>
+                <div className="mt-2 p-2 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-orange-200 dark:border-orange-800">
+                  <span className="font-bold text-orange-600 dark:text-orange-400">💡 零配置直连（推荐方法）：</span>
+                  直接在 <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-orange-500">https://dash.cloudflare.com</a> 部署项目中绑定 D1 数据库，此处<strong>完全无需填写任何凭证</strong>！系统会自动使用后端接口安全直连，彻底绕过跨域限制。
+                </div>
               </div>
 
               {/* D1 Connection Health & Diagnostics Panel */}
@@ -2524,7 +2528,7 @@ jobs:
                   {/* Account ID */}
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1.5">
-                      <span>Cloudflare Account ID (账户 ID) *</span>
+                      <span>Cloudflare Account ID <span className="text-slate-400 font-normal">(Pages部署后免填)</span></span>
                       <a
                         href="https://dash.cloudflare.com"
                         target="_blank"
@@ -2544,7 +2548,7 @@ jobs:
                           cloudflareD1: { ...config.cloudflareD1, accountId: e.target.value.trim() },
                         })
                       }
-                      placeholder="例如: 8a4b6c8d0e1f2a3b4c5d6e7f8a9b0c1d"
+                      placeholder="已绑定 Cloudflare Pages 则无需填写"
                       className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-orange-500"
                     />
                   </div>
@@ -2552,7 +2556,7 @@ jobs:
                   {/* Database ID */}
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1.5">
-                      <span>D1 Database ID (数据库 UUID) *</span>
+                      <span>D1 Database ID <span className="text-slate-400 font-normal">(Pages部署后免填)</span></span>
                       <a
                         href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/d1"
                         target="_blank"
@@ -2572,7 +2576,7 @@ jobs:
                           cloudflareD1: { ...config.cloudflareD1, databaseId: e.target.value.trim() },
                         })
                       }
-                      placeholder="例如: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      placeholder="已绑定 Cloudflare Pages 则无需填写"
                       className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-orange-500"
                     />
                   </div>
@@ -2583,7 +2587,7 @@ jobs:
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <Key className="w-3.5 h-3.5 text-orange-500" />
-                      <span>Cloudflare API 令牌 (Token) *</span>
+                      <span>Cloudflare API 令牌 <span className="text-slate-400 font-normal">(Pages部署后免填)</span></span>
                     </label>
                     <a
                       href="https://dash.cloudflare.com/profile/api-tokens"
@@ -2728,6 +2732,10 @@ jobs:
                 <p>
                   利用 Cloudflare 全球 300+ 边缘机房的 KV 存储网络，读写延迟低至毫秒级。可作为高速书签同步源或与 Cloudflare Pages Functions 无缝配合。
                 </p>
+                <div className="mt-2 p-2 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">💡 零配置直连（推荐方法）：</span>
+                  直接在 <a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-500">https://dash.cloudflare.com</a> 部署项目中绑定 KV 空间，此处<strong>完全无需填写任何凭证</strong>！系统会自动使用后端接口安全直连，彻底绕过跨域限制。
+                </div>
               </div>
 
               {/* KV Connection Health & Diagnostics Panel */}
@@ -2850,7 +2858,7 @@ jobs:
                   {/* Account ID */}
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1.5">
-                      <span>Cloudflare Account ID (账户 ID) *</span>
+                      <span>Cloudflare Account ID <span className="text-slate-400 font-normal">(Pages部署后免填)</span></span>
                       <a
                         href="https://dash.cloudflare.com"
                         target="_blank"
@@ -2870,7 +2878,7 @@ jobs:
                           cloudflareKv: { ...config.cloudflareKv, accountId: e.target.value.trim() },
                         })
                       }
-                      placeholder="例如: 8a4b6c8d0e1f2a3b4c5d6e7f8a9b0c1d"
+                      placeholder="已绑定 Cloudflare Pages 则无需填写"
                       className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -2878,7 +2886,7 @@ jobs:
                   {/* Namespace ID */}
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between mb-1.5">
-                      <span>KV Namespace ID (命名空间 ID) *</span>
+                      <span>KV Namespace ID <span className="text-slate-400 font-normal">(Pages部署后免填)</span></span>
                       <a
                         href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/kv/namespaces"
                         target="_blank"
@@ -2898,7 +2906,7 @@ jobs:
                           cloudflareKv: { ...config.cloudflareKv, namespaceId: e.target.value.trim() },
                         })
                       }
-                      placeholder="例如: 9d8c7b6a5e4f3a2b1c0d9e8f7a6b5c4d"
+                      placeholder="已绑定 Cloudflare Pages 则无需填写"
                       className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-amber-500"
                     />
                   </div>
@@ -2909,7 +2917,7 @@ jobs:
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <Key className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Cloudflare API 令牌 (Token) *</span>
+                      <span>Cloudflare API 令牌 <span className="text-slate-400 font-normal">(Pages部署后免填)</span></span>
                     </label>
                     <a
                       href="https://dash.cloudflare.com/profile/api-tokens"
