@@ -3,7 +3,6 @@ import {
   Search,
   X,
   Globe,
-  ExternalLink,
   Bookmark as BookmarkIcon,
   Bot,
   Code,
@@ -520,7 +519,6 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
                 ) : (
                   <>
                     <span>搜索</span>
-                    <ExternalLink className="w-3 h-3 opacity-80" />
                   </>
                 )}
               </button>
