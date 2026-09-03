@@ -31,16 +31,43 @@ type PagesFunction<Env = unknown, P extends string = string, Data extends Record
 
 interface Env {
   ONENAV_KV?: KVNamespace;
-  DB?: D1Database;
+  [key: string]: any; // Allow custom binding names like MY_DB, BOOKMARK_DB, etc.
+}
+
+function getDatabase(env: Env): D1Database | undefined {
+  if (env.DB) return env.DB;
+  // Fallback to search any binding that looks like a D1 database (has .prepare)
+  for (const key of Object.keys(env)) {
+    const val = env[key];
+    if (val && typeof val === 'object' && typeof (val as any).prepare === 'function') {
+      return val as D1Database;
+    }
+  }
+  return undefined;
+}
+
+function getKV(env: Env): KVNamespace | undefined {
+  if (env.ONENAV_KV) return env.ONENAV_KV;
+  // Fallback to search any binding that looks like a KV namespace (has .get and .put)
+  for (const key of Object.keys(env)) {
+    const val = env[key];
+    if (val && typeof val === 'object' && typeof (val as any).get === 'function' && typeof (val as any).put === 'function') {
+      return val as KVNamespace;
+    }
+  }
+  return undefined;
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env } = context;
 
   try {
+    const db = getDatabase(env);
+    const kv = getKV(env);
+
     // 1. Try D1
-    if (env.DB) {
-      const result = await env.DB.prepare(
+    if (db) {
+      const result = await db.prepare(
         "SELECT data, updated_at FROM onenav_sync WHERE id = 'main_data' LIMIT 1"
       ).first<{ data: string; updated_at: number }>();
 
@@ -55,8 +82,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 2. Try KV
-    if (env.ONENAV_KV) {
-      const value = await env.ONENAV_KV.get('onenav_bookmarks');
+    if (kv) {
+      const value = await kv.get('onenav_bookmarks');
       if (value) {
         return new Response(value, {
           headers: {
@@ -93,12 +120,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // Validate JSON format
     JSON.parse(rawData);
 
+    const db = getDatabase(env);
+    const kv = getKV(env);
+
     // 1. Save to D1 if configured
-    if (env.DB) {
-      await env.DB.exec(
+    if (db) {
+      await db.exec(
         "CREATE TABLE IF NOT EXISTS onenav_sync (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL);"
       );
-      await env.DB.prepare(
+      await db.prepare(
         "INSERT OR REPLACE INTO onenav_sync (id, data, updated_at) VALUES ('main_data', ?, ?);"
       )
         .bind(rawData, Date.now())
@@ -106,13 +136,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 2. Save to KV if configured
-    if (env.ONENAV_KV) {
-      await env.ONENAV_KV.put('onenav_bookmarks', rawData);
+    if (kv) {
+      await kv.put('onenav_bookmarks', rawData);
     }
 
-    if (!env.DB && !env.ONENAV_KV) {
+    if (!db && !kv) {
       return new Response(
-        JSON.stringify({ error: 'Neither DB (D1) nor ONENAV_KV binding is configured' }),
+        JSON.stringify({ error: 'Neither D1 database nor KV namespace binding is configured' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }

@@ -377,15 +377,31 @@ export async function testCloudflareD1Connection(
 export async function initAndTestCloudflareD1(
   config: CloudflareD1Config
 ): Promise<CloudflareServiceResult> {
+  const startTime = performance.now();
+
+  // 1. Try testing native Cloudflare Pages Functions endpoint (/api/sync) first
+  try {
+    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const latencyMs = Math.round(performance.now() - startTime);
+    if (nativeRes.ok || nativeRes.status === 404) {
+      return {
+        success: true,
+        message: `Cloudflare Pages 后端接口 (/api/sync) 连接成功！(延迟 ${latencyMs}ms)`,
+        latencyMs,
+      };
+    }
+  } catch {
+    // ignore and try direct API
+  }
+
   const { accountId, databaseId, apiToken, tableName } = config;
   if (!accountId || !databaseId || !apiToken) {
     return {
       success: false,
-      message: '请完整填写 Cloudflare Account ID、D1 Database ID 和 API 令牌',
+      message: '请完整填写 Account ID、D1 Database ID、API 令牌，或将项目部署至 Cloudflare Pages 使用 /api/sync 接口',
     };
   }
 
-  const startTime = performance.now();
   const table = (tableName || 'onenav_sync').trim();
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId.trim()}/d1/database/${databaseId.trim()}/query`;
 
@@ -424,7 +440,7 @@ export async function initAndTestCloudflareD1(
   } catch (err: any) {
     return {
       success: false,
-      message: `初始化异常: ${err.message || '网络请求错误'}`,
+      message: `网络连接异常 (Failed to fetch): 浏览器端直接调用 Cloudflare API 会被 CORS 跨域拦截。请将项目部署至 Cloudflare Pages 以使用内置的 /api/sync 后端接口。`,
     };
   }
 }
@@ -435,9 +451,24 @@ export async function initAndTestCloudflareD1(
 export async function fetchFromCloudflareD1(
   config: CloudflareD1Config
 ): Promise<CloudflareServiceResult> {
+  // 1. Try native Cloudflare Pages Functions endpoint (/api/sync) FIRST (avoids browser CORS)
+  try {
+    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    if (nativeRes.ok) {
+      const payload: OneNavSyncPayload = await nativeRes.json();
+      return {
+        success: true,
+        message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功同步 D1 数据',
+        data: payload,
+      };
+    }
+  } catch {
+    // ignore and fallback to direct API if configured
+  }
+
   const { accountId, databaseId, apiToken, tableName } = config;
 
-  // 1. Direct D1 REST API
+  // 2. Direct D1 REST API fallback
   if (accountId && databaseId && apiToken) {
     const startTime = performance.now();
     const table = (tableName || 'onenav_sync').trim();
@@ -491,29 +522,14 @@ export async function fetchFromCloudflareD1(
     } catch (err: any) {
       return {
         success: false,
-        message: `D1 读取异常: ${err.message || '网络连接失败'}`,
+        message: `D1 读取异常: 浏览器跨域拦截 (Failed to fetch)。请将项目部署至 Cloudflare Pages 并使用内置的 /api/sync 接口。`,
       };
     }
-  }
-
-  // 2. Native Pages Functions endpoint fallback (/api/sync)
-  try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
-    if (nativeRes.ok) {
-      const payload: OneNavSyncPayload = await nativeRes.json();
-      return {
-        success: true,
-        message: '通过 Cloudflare Pages 原生环境成功获取 D1 数据库记录',
-        data: payload,
-      };
-    }
-  } catch {
-    // ignore
   }
 
   return {
     success: false,
-    message: '请先配置 Cloudflare D1 的 Account ID、Database ID 与 API 令牌',
+    message: '请先配置 Cloudflare Pages 后端绑定或 Account ID、Database ID 与 API 令牌',
   };
 }
 
@@ -524,9 +540,27 @@ export async function saveToCloudflareD1(
   config: CloudflareD1Config,
   payload: OneNavSyncPayload
 ): Promise<CloudflareServiceResult> {
+  // 1. Try native Cloudflare Pages Functions endpoint (/api/sync) FIRST
+  try {
+    const nativeRes = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (nativeRes.ok) {
+      return {
+        success: true,
+        message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功持久化至 D1',
+        data: payload,
+      };
+    }
+  } catch {
+    // ignore
+  }
+
   const { accountId, databaseId, apiToken, tableName } = config;
 
-  // 1. Direct D1 REST API
+  // 2. Direct D1 REST API fallback
   if (accountId && databaseId && apiToken) {
     const startTime = performance.now();
     const table = (tableName || 'onenav_sync').trim();
@@ -578,32 +612,14 @@ export async function saveToCloudflareD1(
     } catch (err: any) {
       return {
         success: false,
-        message: `D1 保存异常: ${err.message || '网络连接失败'}`,
+        message: `D1 保存异常: 浏览器跨域拦截 (Failed to fetch)。建议使用 Cloudflare Pages 后端接口 (/api/sync)。`,
       };
     }
-  }
-
-  // 2. Native Pages Functions endpoint fallback
-  try {
-    const nativeRes = await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (nativeRes.ok) {
-      return {
-        success: true,
-        message: '通过 Cloudflare Pages 原生环境成功写入 D1 数据库',
-        data: payload,
-      };
-    }
-  } catch {
-    // ignore
   }
 
   return {
     success: false,
-    message: '请先配置 Cloudflare D1 的 Account ID、Database ID 与 API 令牌',
+    message: '请先配置 Cloudflare Pages 后端绑定或 Account ID、Database ID 与 API 令牌',
   };
 }
 

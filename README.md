@@ -482,12 +482,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 2. 点击顶部标签页的 **Settings（设置）** -> **Functions（函数）**。
 3. 向下滚动找到 **KV namespace bindings** 区域：
    - 点击 **Add binding**：
-     - **Variable name (变量名)**：填写 `ONENAV_KV`
-     - **KV namespace**：下拉选择您刚刚创建的 `ONENAV_KV` 命名空间。
+     - **Variable name (变量名)**：填写 `ONENAV_KV`（**支持自定义变量名**，如 `MY_KV`、`BOOKMARK_KV` 等）
+     - **KV namespace**：下拉选择您刚刚创建的 KV 命名空间。
 4. 如果您使用的是 D1 数据库，在 **D1 database bindings** 区域：
    - 点击 **Add binding**：
-     - **Variable name (变量名)**：填写 `DB`
-     - **D1 database**：下拉选择您的 `onenav-db` 数据库。
+     - **Variable name (变量名)**：填写 `DB`（**支持任意自定义变量名**，系统会自动智能识别匹配，如 `MY_DB`、`BOOKMARK_DB` 等）
+     - **D1 database**：下拉选择您的 D1 数据库。
 5. 点击页面下方的 **Save（保存）**。
 
 #### 步骤 3：重新部署
@@ -495,9 +495,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 2. 点击最新一次部署右侧的 `...` 菜单，选择 **Redeploy（重新部署）**。
 3. 等待约 30 秒部署完成后，您的 OneNav 就可以直接无缝通过内置的 `/api/sync` 边缘接口与 Cloudflare 存储高速、安全、跨域无阻地同步了！
 
-> 💡 **重要排错提示（关于 `KV 读取异常: Failed to fetch`）**：
-> 如果您在设置中填入了 Cloudflare 的 Account ID、Namespace ID 和 API 令牌，网页会尝试直接调用 Cloudflare 官方 API，从而遭到浏览器严格的 **CORS 跨域安全拦截**。
-> **正确做法**：当项目成功部署到 Cloudflare Pages 并绑定好 `ONENAV_KV` 存储后，在前端设置面板中**无需填写 Account ID 与 API Token**，系统会自动通过内置的 `/api/sync` 边缘接口与 KV 进行通信，完美解决跨域问题！
+> 💡 **重要排错提示（关于 `KV / D1 读取异常: Failed to fetch` 跨域报错）**：
+> 无论是 **Cloudflare KV** 还是 **Cloudflare D1**，如果您在网页端设置中直接填入了 Account ID、API 令牌、Database ID 等敏感凭证，浏览器会尝试直接请求 Cloudflare 官方 API，从而遭到严格的 **CORS 跨域安全拦截**，提示 `Failed to fetch`。
+> **正确做法**：当项目成功部署到 Cloudflare Pages 并通过后台绑定好 `ONENAV_KV` 或 `DB` 后，在网页端的前端设置面板中**完全无需填写 Account ID、Token 或 Database ID 等凭证**！系统会自动优先通过内置的 `/api/sync` 边缘接口在服务器端与 KV / D1 进行安全通信，完美解决跨域问题！
 
 ---
 
