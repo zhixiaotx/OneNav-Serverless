@@ -50,15 +50,32 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = D
 export async function testCloudflareKVConnection(
   config: CloudflareKVConfig
 ): Promise<CloudflareConnectionStatus> {
+  const startTime = performance.now();
+
+  // 1. Try testing native Cloudflare Pages Functions endpoint (/api/sync) first
+  try {
+    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const latencyMs = Math.round(performance.now() - startTime);
+    if (nativeRes.ok || nativeRes.status === 404) {
+      return {
+        ok: true,
+        latencyMs,
+        message: `Cloudflare Pages 后端接口 (/api/sync) 连接成功！(延迟 ${latencyMs}ms)`,
+        lastChecked: Date.now(),
+      };
+    }
+  } catch {
+    // ignore and try direct API
+  }
+
   const { accountId, namespaceId, apiToken, keyName } = config;
   if (!accountId || !namespaceId || !apiToken) {
     return {
       ok: false,
-      message: '请完整填写 Account ID、KV Namespace ID 和 API 令牌',
+      message: '请完整填写 Account ID、KV Namespace ID、API 令牌，或将项目部署至 Cloudflare Pages 使用 /api/sync 接口',
     };
   }
 
-  const startTime = performance.now();
   const targetKey = keyName.trim() || 'onenav_bookmarks';
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId.trim()}/storage/kv/namespaces/${namespaceId.trim()}/values/${encodeURIComponent(targetKey)}`;
 
@@ -73,7 +90,6 @@ export async function testCloudflareKVConnection(
     const latencyMs = Math.round(performance.now() - startTime);
 
     if (res.status === 404) {
-      // 404 means auth succeeded & namespace exists, but key hasn't been written yet (normal for first setup)
       return {
         ok: true,
         latencyMs,
@@ -115,7 +131,7 @@ export async function testCloudflareKVConnection(
     return {
       ok: false,
       latencyMs,
-      message: `网络连接异常: ${err.message || '无法访问 Cloudflare API'}`,
+      message: `网络连接异常 (Failed to fetch): 浏览器端直接调用 Cloudflare API 会被 CORS 跨域拦截。请将项目部署至 Cloudflare Pages 以使用内置的 /api/sync 后端接口。`,
       lastChecked: Date.now(),
     };
   }
@@ -127,9 +143,24 @@ export async function testCloudflareKVConnection(
 export async function fetchFromCloudflareKV(
   config: CloudflareKVConfig
 ): Promise<CloudflareServiceResult> {
+  // 1. Try native Cloudflare Pages Functions endpoint (/api/sync) FIRST (avoids browser CORS)
+  try {
+    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    if (nativeRes.ok) {
+      const payload: OneNavSyncPayload = await nativeRes.json();
+      return {
+        success: true,
+        message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功同步 KV 数据',
+        data: payload,
+      };
+    }
+  } catch {
+    // ignore and fallback to direct API if configured
+  }
+
   const { accountId, namespaceId, apiToken, keyName } = config;
 
-  // 1. Direct Cloudflare API
+  // 2. Direct Cloudflare API fallback
   if (accountId && namespaceId && apiToken) {
     const startTime = performance.now();
     const targetKey = keyName.trim() || 'onenav_bookmarks';
@@ -174,29 +205,14 @@ export async function fetchFromCloudflareKV(
     } catch (err: any) {
       return {
         success: false,
-        message: `KV 读取异常: ${err.message || '网络连接失败'}`,
+        message: `KV 读取异常: 浏览器跨域拦截 (Failed to fetch)。请将项目部署至 Cloudflare Pages 并使用内置的 /api/sync 接口。`,
       };
     }
-  }
-
-  // 2. Native Cloudflare Pages Functions endpoint fallback (/api/sync)
-  try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
-    if (nativeRes.ok) {
-      const payload: OneNavSyncPayload = await nativeRes.json();
-      return {
-        success: true,
-        message: '通过 Cloudflare Pages 原生环境成功拉取数据',
-        data: payload,
-      };
-    }
-  } catch {
-    // ignore
   }
 
   return {
     success: false,
-    message: '请先配置 Cloudflare KV 的 Account ID、Namespace ID 与 API Token',
+    message: '请先配置 Cloudflare Pages 后端绑定或 Account ID、Namespace ID 与 API Token',
   };
 }
 
@@ -207,9 +223,27 @@ export async function saveToCloudflareKV(
   config: CloudflareKVConfig,
   payload: OneNavSyncPayload
 ): Promise<CloudflareServiceResult> {
+  // 1. Try native Cloudflare Pages Functions endpoint (/api/sync) FIRST
+  try {
+    const nativeRes = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (nativeRes.ok) {
+      return {
+        success: true,
+        message: '已通过 Cloudflare Pages 后端接口 (/api/sync) 成功持久化至 KV',
+        data: payload,
+      };
+    }
+  } catch {
+    // ignore
+  }
+
   const { accountId, namespaceId, apiToken, keyName } = config;
 
-  // 1. Direct Cloudflare API
+  // 2. Direct Cloudflare API fallback
   if (accountId && namespaceId && apiToken) {
     const startTime = performance.now();
     const targetKey = keyName.trim() || 'onenav_bookmarks';
@@ -247,32 +281,14 @@ export async function saveToCloudflareKV(
     } catch (err: any) {
       return {
         success: false,
-        message: `KV 写入异常: ${err.message || '网络连接失败'}`,
+        message: `KV 写入异常: 浏览器跨域拦截 (Failed to fetch)。建议使用 Cloudflare Pages 后端接口 (/api/sync)。`,
       };
     }
-  }
-
-  // 2. Native Cloudflare Pages Functions endpoint fallback
-  try {
-    const nativeRes = await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (nativeRes.ok) {
-      return {
-        success: true,
-        message: '通过 Cloudflare Pages 原生环境成功写入数据',
-        data: payload,
-      };
-    }
-  } catch {
-    // ignore
   }
 
   return {
     success: false,
-    message: '请先配置 Cloudflare KV 的 Account ID、Namespace ID 与 API Token',
+    message: '请先配置 Cloudflare Pages 后端绑定或 Account ID、Namespace ID 与 API Token',
   };
 }
 
