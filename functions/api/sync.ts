@@ -36,12 +36,17 @@ interface Env {
 }
 
 function getDatabase(env: Env): D1Database | undefined {
-  if (env.DB) return env.DB;
-  if (env.D1) return env.D1;
-  // Fallback to search any binding that looks like a D1 database (has .prepare)
+  // 1. Explicitly check common names but verify they are actually D1 (have .prepare)
+  if (env.DB && typeof env.DB === 'object' && typeof (env.DB as any).prepare === 'function') return env.DB;
+  if (env.D1 && typeof env.D1 === 'object' && typeof (env.D1 as any).prepare === 'function') return env.D1;
+  
+  // 2. Fallback to search any binding that looks like a D1 database
   for (const key of Object.keys(env)) {
+    // Skip known non-database keys
+    if (key === 'SYNC_SECRET' || key === 'ASSETS') continue;
+    
     const val = env[key];
-    if (val && typeof val === 'object' && typeof (val as any).prepare === 'function') {
+    if (val && typeof val === 'object' && typeof (val as any).prepare === 'function' && typeof (val as any).batch === 'function') {
       return val as D1Database;
     }
   }
@@ -49,12 +54,18 @@ function getDatabase(env: Env): D1Database | undefined {
 }
 
 function getKV(env: Env): KVNamespace | undefined {
-  if (env.ONENAV_KV) return env.ONENAV_KV;
-  if (env.KV) return env.KV;
-  // Fallback to search any binding that looks like a KV namespace (has .get and .put)
+  // 1. Explicitly check common names but verify they are actually KV (have .get and .put, but NO .prepare)
+  if (env.ONENAV_KV && typeof env.ONENAV_KV.get === 'function' && !('prepare' in env.ONENAV_KV)) return env.ONENAV_KV;
+  if (env.KV && typeof env.KV.get === 'function' && !('prepare' in env.KV)) return env.KV;
+  
+  // 2. Fallback to search any binding that looks like a KV namespace
   for (const key of Object.keys(env)) {
+    // Skip known non-KV keys
+    if (key === 'SYNC_SECRET' || key === 'ASSETS') continue;
+
     const val = env[key];
-    if (val && typeof val === 'object' && typeof (val as any).get === 'function' && typeof (val as any).put === 'function') {
+    // A KV namespace should have get/put but NOT prepare
+    if (val && typeof val === 'object' && typeof (val as any).get === 'function' && typeof (val as any).put === 'function' && !('prepare' in val)) {
       return val as KVNamespace;
     }
   }
