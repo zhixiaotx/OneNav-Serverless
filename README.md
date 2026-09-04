@@ -408,62 +408,24 @@ VITE_WEBDAV_PATH="/onenav/bookmarks.json"
 
 ### 一、 项目中已内置的后端接口代码 (`/functions/api/sync.ts`)
 
-在本项目源码中，后端接口已经为您写好并放置于 `/functions/api/sync.ts`，代码如下（无需您手动修改）：
+在本项目源码中，后端接口已经为您写好并放置于 `/functions/api/sync.ts`。该接口支持 **D1 数据库**与 **KV 存储**的双重自动识别，并内置了 **SYNC_SECRET 安全访问控制**。
 
 ```ts
 // /functions/api/sync.ts (内置的 Cloudflare Pages Function)
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const { env } = context;
-  try {
-    // 1. 优先从 D1 关系型数据库读取
-    if (env.DB) {
-      const result = await env.DB.prepare(
-        "SELECT data, updated_at FROM onenav_sync WHERE id = 'main_data' LIMIT 1"
-      ).first<{ data: string; updated_at: number }>();
-      if (result?.data) {
-        return new Response(result.data, { headers: { 'Content-Type': 'application/json' } });
-      }
-    }
-    // 2. 其次从 KV 存储读取
-    if (env.ONENAV_KV) {
-      const value = await env.ONENAV_KV.get('onenav_bookmarks');
-      if (value) {
-        return new Response(value, { headers: { 'Content-Type': 'application/json' } });
-      }
-    }
-    return new Response(JSON.stringify({ error: 'No data stored yet' }), { status: 404 });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
-  }
-};
+// 核心逻辑摘要：
+// 1. 自动探测并绑定环境中的 D1 (名为 DB 或 D1) 与 KV (名为 ONENAV_KV 或 KV)
+// 2. 支持 SYNC_SECRET 环境变量验证，防止接口被非法调用
+// 3. 写入时自动执行 CREATE TABLE IF NOT EXISTS 确保 D1 表结构正确
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
-  try {
-    const rawData = await request.text();
-    JSON.parse(rawData); // 校验 JSON 格式
-
-    // 1. 写入 D1
-    if (env.DB) {
-      await env.DB.exec(
-        "CREATE TABLE IF NOT EXISTS onenav_sync (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL);"
-      );
-      await env.DB.prepare(
-        "INSERT OR REPLACE INTO onenav_sync (id, data, updated_at) VALUES ('main_data', ?, ?);"
-      )
-        .bind(rawData, Date.now())
-        .run();
-    }
-    // 2. 写入 KV
-    if (env.ONENAV_KV) {
-      await env.ONENAV_KV.put('onenav_bookmarks', rawData);
-    }
-    return new Response(JSON.stringify({ success: true, message: 'Saved to Cloudflare storage' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+  
+  // 安全验证：若环境变量中设置了 SYNC_SECRET，则校验请求头中的 x-sync-secret 或 Authorization
+  if (env.SYNC_SECRET && !verifySecret(env, request)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
   }
+
+  // ... 自动保存逻辑 (优先 D1，其次 KV)
 };
 ```
 
@@ -475,58 +437,43 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
 #### 步骤 1：准备 Cloudflare 存储资源
 1. 登录 [Cloudflare Dashboard 控制面板](https://dash.cloudflare.com/)。
-2. **如果您使用 KV**：
-   - 在左侧菜单点击 **Workers & Pages** -> **KV**。
-   - 点击 **Create namespace**，命名空间名称输入 `ONENAV_KV`，点击创建。
-3. **如果您使用 D1**：
-   - 点击 **Workers & Pages** -> **D1 SQL Database**。
-   - 点击 **Create database**，数据库名称输入 `onenav-db`，点击创建。
+2. **如果您使用 KV**：点击 **Workers & Pages** -> **KV** -> **Create namespace**，命名为 `ONENAV_KV`。
+3. **如果您使用 D1**：点击 **Workers & Pages** -> **D1 SQL Database** -> **Create database**，名称输入 `onenav-db`。
 
-#### 步骤 2：在 Cloudflare Pages 中绑定存储
-1. 进入您的 Cloudflare Pages 项目控制面板。
-2. 点击顶部标签页的 **Settings（设置）** -> **Functions（函数）**。
-3. 向下滚动找到 **KV namespace bindings** 区域：
-   - 点击 **Add binding**：
-     - **Variable name (变量名)**：填写 `ONENAV_KV`（**支持自定义变量名**，如 `MY_KV`、`BOOKMARK_KV` 等）
-     - **KV namespace**：下拉选择您刚刚创建的 KV 命名空间。
-4. 如果您使用的是 D1 数据库，在 **D1 database bindings** 区域：
-   - 点击 **Add binding**：
-     - **Variable name (变量名)**：填写 `DB`（**支持任意自定义变量名**，系统会自动智能识别匹配，如 `MY_DB`、`BOOKMARK_DB` 等）
-     - **D1 database**：下拉选择您的 D1 数据库。
-5. 点击页面下方的 **Save（保存）**。
+#### 步骤 2：在 Cloudflare Pages 中绑定存储与配置安全密钥
+1. 进入您的 Cloudflare Pages 项目控制面板 -> **Settings（设置）**。
+2. **绑定存储**：
+   - 在 **Functions（函数）** -> **KV namespace bindings** 中添加变量名 `ONENAV_KV`。
+   - 在 **Functions（函数）** -> **D1 database bindings** 中添加变量名 `DB`。
+3. **添加安全密钥 (可选但强烈推荐 ⭐⭐⭐)**：
+   - 前往 **Environment variables（环境变量）** -> **Production**。
+   - 点击 **Add variable**，变量名填写 **`SYNC_SECRET`**，值填写一个您自定义的复杂字符串（如 `my_secure_token_123`）。
+   - *设置后，只有在网页端填写了相同密钥的用户才能同步数据，极大地提升了安全性。*
+4. 点击页面下方的 **Save（保存）** 并进入 **Deployments** 重新部署（Redeploy）。
 
-#### 步骤 3：重新部署生效
-1. 进入 Pages 项目的 **Deployments** 页面。
-2. 点击最新一次部署右侧的 `...` 菜单，选择 **Redeploy（重新部署）**。
-3. 等待约 30 秒部署完成后，Cloudflare 边缘环境便自动装载了您的 D1 数据库或 KV 命名空间！
-
-#### 步骤 4：在 OneNav 网页端开启零配置同步（全免填，极简体验 ✨）
+#### 步骤 3：在 OneNav 网页端开启零配置同步（全免填，极简体验 ✨）
 1. 打开部署好的 OneNav 网站，点击右上角 ⚙️ **设置** -> **数据同步**。
-2. 在同步提供商下拉菜单中选择 **Cloudflare D1** 或 **Cloudflare KV**。
-3. 界面会显示醒目的橙色/黄色提示：
-   > 💡 **零配置直连（推荐方法）**：直接在 https://dash.cloudflare.com 部署项目中绑定对应存储，此处**完全无需填写任何凭证**！
-4. 页面中的输入框已特别标记为 `(Pages部署后免填)`，占位符为 `已绑定 Cloudflare Pages 则无需填写`。
-5. **无需填写任何内容，直接点击「测试连接」**：
-   - 系统将自动向本站同源接口 `/api/sync` 发送探测请求。
-   - 看到绿色的「连接成功，已打通 Cloudflare 存储！」即表示连通无阻！
-6. 点击 **「推送到云端保存」** 即可完成书签的首次全量边缘备份；后续在其他设备打开，同样选择该提供商并点击 **「拉取云端数据」** 即可无缝同步！
+2. 选择 **Cloudflare D1** 或 **Cloudflare KV**。
+3. **填写同步访问密钥**：
+   - 若您在步骤 2 中设置了 `SYNC_SECRET`，请在 **「同步访问密钥 (SYNC_SECRET)」** 输入框中填入该值。
+4. **无需填写其他凭证**（Account ID / Token 等保持留空），直接点击 **「测试连接」**。
+5. 看到绿色的「连接成功」后，点击 **「推送到云端保存」** 即可完成首次全量备份！
 
 ---
 
 ### 三、 原理解析与常见避坑要点（为什么官方推荐零配置直连？）
 
 #### 1. 为什么在网页直接填写 API 令牌会报 `Failed to fetch`？
-* **浏览器 CORS 跨域限制**：Cloudflare 官方 REST API (`https://api.cloudflare.com/client/v4/...`) 出于安全考虑，并未对第三方浏览器域名开放全通配跨域预检请求（OPTIONS）。
-* 因此，任何从前端网页直接发起的 Cloudflare REST API 请求，都会被现代浏览器严格拦截，表现为底层的 `TypeError: Failed to fetch`。
+* **浏览器 CORS 跨域限制**：Cloudflare 官方 REST API 未对第三方浏览器开放跨域预检。
+* **解决方案**：本项目通过 Pages Functions 在服务端发起请求，前端仅与同源接口 `/api/sync` 通信，彻底杜绝跨域问题。
 
-#### 2. 本项目“零配置直连”架构的巨大优势：
-* 🛡️ **绝对安全（0 凭据泄露风险）**：无需在网页端或浏览器 LocalStorage 存储高权限的 Cloudflare API 令牌，所有权限均在 Cloudflare 内部环境鉴权。
-* ⚡ **绝对同源（彻底根除跨域拦截）**：网页前端仅请求自身域名下的 `/api/sync` 路径，属于 100% 同源请求，彻底告别 CORS 报错！
-* 🚀 **极简零门槛**：换新电脑或新手机时，无需反复寻找、复制粘贴那串反人类的 32 位 Token 和 Database ID，打开设置直接一键连通！
+#### 2. SYNC_SECRET 的作用是什么？
+* **接口保护**：由于 `/api/sync` 接口在 Pages 部署后是公开可访问的，设置 `SYNC_SECRET` 后，后端会拦截未授权的读写请求，确保只有您自己能同步数据。
+* **多端一致性**：一旦开启，您在所有设备（手机、平板、其他 PC）的同步设置中都必须填写该密钥。
 
-#### 3. 智能错误诊断与本地开发专属福利
-* **智能异常捕获**：若底层依然因特殊原因抛出 `Failed to fetch` 错误，OneNav 的数据层已全面内置智能诊断拦截器，会自动转化为高可读性的中文指引，精准告知故障原因与解决方案。
-* **本地开发代理福利 (`vite.config.ts`)**：如果您在本地开发运行 `npm run dev`，或在 AI Studio 等开发沙箱中预览测试（尚未部署到 Cloudflare Pages），此时没有生产环境的 `/api/sync` 接口。项目内置了 `/api/cloudflare` 本地跨域反向代理，您可以在开发阶段放心填写 Account ID 与 Token 进行功能联调，代理会自动帮您绕过浏览器的跨域拦截！生产上线部署至 Cloudflare Pages 时，则直接享受零配置免凭证直连。
+#### 3. 智能 D1 表初始化机制
+* **免手动建表**：您无需进入 D1 管理控制台手动运行 SQL。当您第一次在网页端点击「保存」时，后端会自动执行 `CREATE TABLE IF NOT EXISTS` 命令，为您创建所需的 `onenav_sync` 存储表。
+
 
 
 ---
