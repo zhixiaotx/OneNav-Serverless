@@ -133,17 +133,24 @@ export async function testCloudflareKVConnection(
     } catch (err: any) { lastError = err; }
   }
 
-  // 2. Try testing native Cloudflare Pages Functions endpoint (/api/sync)
+  // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const headers: Record<string, string> = {};
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
+    const nativeRes = await fetch('/api/sync', { method: 'GET', headers });
     const contentType = nativeRes.headers.get('content-type') || '';
     const latencyMs = Math.round(performance.now() - startTime);
     if ((nativeRes.ok || nativeRes.status === 404) && (contentType.includes('application/json') || nativeRes.status === 404)) {
+      const data = nativeRes.status === 200 ? await nativeRes.json().catch(() => ({})) : {};
       return {
         ok: true,
         latencyMs,
         message: `Cloudflare Pages 绑定就绪，后端接口 (/api/sync) 连接畅通！(延迟 ${latencyMs}ms)`,
         lastChecked: Date.now(),
+        details: data
       };
     }
   } catch (err: any) {
@@ -219,7 +226,12 @@ export async function fetchFromCloudflareKV(
 
   // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const headers: Record<string, string> = {};
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
+    const nativeRes = await fetch('/api/sync', { method: 'GET', headers });
     const contentType = nativeRes.headers.get('content-type') || '';
     if (nativeRes.ok && (contentType.includes('application/json') || !contentType.includes('text/html'))) {
       const payload: OneNavSyncPayload = await nativeRes.json();
@@ -295,9 +307,14 @@ export async function saveToCloudflareKV(
 
   // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
     const nativeRes = await fetch('/api/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
     if (nativeRes.ok) {
@@ -380,8 +397,14 @@ export async function testCloudflareD1Connection(
     } catch (err: any) { lastError = err; }
   }
 
+  // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const headers: Record<string, string> = {};
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
+    const nativeRes = await fetch('/api/sync', { method: 'GET', headers });
     const contentType = nativeRes.headers.get('content-type') || '';
     const latencyMs = Math.round(performance.now() - startTime);
     if ((nativeRes.ok || nativeRes.status === 404) && (contentType.includes('application/json') || nativeRes.status === 404)) {
@@ -455,7 +478,12 @@ export async function initAndTestCloudflareD1(
   }
 
   try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const headers: Record<string, string> = {};
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
+    const nativeRes = await fetch('/api/sync', { method: 'GET', headers });
     const contentType = nativeRes.headers.get('content-type') || '';
     const latencyMs = Math.round(performance.now() - startTime);
     if ((nativeRes.ok || nativeRes.status === 404) && (contentType.includes('application/json') || nativeRes.status === 404)) {
@@ -538,8 +566,14 @@ export async function fetchFromCloudflareD1(
     } catch (err: any) { lastError = err; }
   }
 
+  // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
-    const nativeRes = await fetch('/api/sync', { method: 'GET' });
+    const headers: Record<string, string> = {};
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
+    const nativeRes = await fetch('/api/sync', { method: 'GET', headers });
     const contentType = nativeRes.headers.get('content-type') || '';
     if (nativeRes.ok && (contentType.includes('application/json') || !contentType.includes('text/html'))) {
       const payload: OneNavSyncPayload = await nativeRes.json();
@@ -624,10 +658,16 @@ export async function saveToCloudflareD1(
     } catch (err: any) { lastError = err; }
   }
 
+  // 2. Try native Cloudflare Pages Functions endpoint (/api/sync)
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (config.secretToken) {
+      headers['x-sync-secret'] = config.secretToken;
+    }
+
     const nativeRes = await fetch('/api/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
     if (nativeRes.ok) {

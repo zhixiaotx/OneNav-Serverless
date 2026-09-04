@@ -117,6 +117,7 @@ export interface CloudflareKVConfig {
   namespaceId: string;
   apiToken: string;
   keyName: string;
+  secretToken?: string;
 }
 
 export interface CloudflareD1Config {
@@ -124,6 +125,7 @@ export interface CloudflareD1Config {
   databaseId: string;
   apiToken: string;
   tableName: string;
+  secretToken?: string;
 }
 
 export interface SyncConfig {

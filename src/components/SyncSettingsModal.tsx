@@ -242,7 +242,9 @@ export const SyncSettingsModal: React.FC<SyncSettingsModalProps> = ({
   // Mask / Unmask visibility states for sensitive credentials
   const [showGistToken, setShowGistToken] = useState(false);
   const [showKvToken, setShowKvToken] = useState(false);
+  const [showKvSecret, setShowKvSecret] = useState(false);
   const [showD1Token, setShowD1Token] = useState(false);
+  const [showD1Secret, setShowD1Secret] = useState(false);
   const [showRepoToken, setShowRepoToken] = useState(false);
   const [showWebdavPassword, setShowWebdavPassword] = useState(false);
 
@@ -2630,6 +2632,40 @@ jobs:
                   />
                 </div>
 
+                {/* Sync Secret (Password) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <Lock className="w-3.5 h-3.5 text-orange-500" />
+                      <span>同步访问密钥 (SYNC_SECRET)</span>
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showD1Secret ? 'text' : 'password'}
+                      value={config.cloudflareD1.secretToken || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          cloudflareD1: { ...config.cloudflareD1, secretToken: e.target.value.trim() },
+                        })
+                      }
+                      placeholder="若后端 SYNC_SECRET 已设置，请在此填写"
+                      className="w-full pl-3.5 pr-10 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowD1Secret(!showD1Secret)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      {showD1Secret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    若你在 Cloudflare Pages 环境变量中设置了 <code>SYNC_SECRET</code>，此处必须填写一致，否则同步将被拦截。
+                  </p>
+                </div>
+
                 {/* Actions */}
                 <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -2958,6 +2994,37 @@ jobs:
                     placeholder="onenav_bookmarks"
                     className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono"
                   />
+                </div>
+
+                {/* KV Sync Secret (Password) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <Lock className="w-3.5 h-3.5 text-amber-500" />
+                      <span>同步访问密钥 (SYNC_SECRET)</span>
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showKvSecret ? 'text' : 'password'}
+                      value={config.cloudflareKv.secretToken || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          cloudflareKv: { ...config.cloudflareKv, secretToken: e.target.value.trim() },
+                        })
+                      }
+                      placeholder="若后端 SYNC_SECRET 已设置，请在此填写"
+                      className="w-full pl-3.5 pr-10 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKvSecret(!showKvSecret)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    >
+                      {showKvSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Actions */}
